@@ -1,5 +1,7 @@
 from .pipeline import Pipeline, PipelineError
+from .task import task, set_output
 from .checkpoint_strategies import FileCheckpointStrategy
+from .llm_methods import deserialize_llm_response_json
 import asyncio
 import functools
 

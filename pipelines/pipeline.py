@@ -1,41 +1,61 @@
-from typing import Dict, Any
 from .checkpoint_strategies import CheckpointStrategy
+from .task import Composable, SetOutput, GetOutput
 import asyncio
-import pickle
+from typing import Callable, TypeVar, Generic, Union, Awaitable, Dict, Any, List
 
 class PipelineError(Exception):
     pass
 
 class Pipeline:
-    def __init__(self, coroutines, checkpoint_strategy=None):
-        self.coroutines = coroutines
+    def __init__(self, *tasks: Composable, parallel: bool = False, checkpoint_strategy: 'CheckpointStrategy' = None):
+        self.tasks = list(tasks)
+        self.parallel = parallel
         self.checkpoint_strategy = checkpoint_strategy
+        self.outputs = {}
 
-    async def __call__(self, initial_data: Dict[str, Any], identifier: str = None) -> Dict[str, Any]:
-        data = initial_data
-        completed_steps = data.get('completed_steps', [])
+    async def __call__(self, *args, **kwargs) -> List[Any]:
+        checkpoint_identifier = f"pipeline_{id(self)}"
+        checkpoint = await self.load_checkpoint(checkpoint_identifier)
+        if checkpoint:
+            start_index = checkpoint['task_index']
+            args = checkpoint['args']
+            kwargs = checkpoint['kwargs']
+            self.outputs = checkpoint['outputs']
+        else:
+            start_index = 0
 
-        for step in self.coroutines:
-            # Check if the step is a list (indicating concurrent execution)
-            if isinstance(step, list):
-                concurrent_tasks = [coroutine(data) for coroutine in step]
-                results = await asyncio.gather(*concurrent_tasks)
-                # Assuming you want to merge results - adjust according to your needs
-                for result in results:
-                    data.update(result)
+        outputs = []
+        for i in range(start_index, len(self.tasks)):
+            task = self.tasks[i]
+            print("Tasks", len(self.tasks), task)
+            if isinstance(task, SetOutput):
+                self.outputs[task.name] = args[0]
+            elif isinstance(task, GetOutput):
+                args = (self.outputs[task.name],)
             else:
-                if step.__name__ not in completed_steps:
-                    try:
-                        data = await step(data)
-                        completed_steps.append(step.__name__)
-                        data['completed_steps'] = completed_steps
-                        if self.checkpoint_strategy and identifier:
-                            await self.checkpoint_strategy.save(data, identifier)
-                    except PipelineError as e:
-                        print(f"Error occurred in pipeline step: {step.__name__}")
-                        print(f"Error message: {str(e)}")
-                        raise
+                if self.parallel:
+                    result = await asyncio.gather(task(*args, **kwargs))
                 else:
-                    print(f"Skipping completed step: {step.__name__}")
+                    result = await task(*args, **kwargs)
+                print("Found", result)
+                outputs.append(result)
+                args = (result,)
+            await self.save_checkpoint(checkpoint_identifier, i + 1, args, kwargs, self.outputs)
+        if len(outputs) == 1:
+            return outputs[0]
+        return outputs
 
-        return data
+    async def save_checkpoint(self, checkpoint_identifier: str, task_index: int, args: tuple, kwargs: dict, outputs: dict):
+        if self.checkpoint_strategy:
+            checkpoint_data = {
+                'task_index': task_index,
+                'args': args,
+                'kwargs': kwargs,
+                'outputs': outputs
+            }
+            await self.checkpoint_strategy.save_checkpoint(checkpoint_identifier, checkpoint_data)
+
+    async def load_checkpoint(self, checkpoint_identifier: str) -> Dict[str, Any]:
+        if self.checkpoint_strategy:
+            return await self.checkpoint_strategy.load_checkpoint(checkpoint_identifier)
+        return None
