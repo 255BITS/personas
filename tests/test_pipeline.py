@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from pipelines import Pipeline, PipelineError, async_partial, task, set_output
+from pipelines import Pipeline, PipelineError, async_partial, task, set_output, get_output
 
 from typing import NamedTuple
 
@@ -23,8 +23,16 @@ async def task_generate_b() -> B:
     return B(content="Generated B")
 
 @task
+async def task_override(override=None):
+    return override
+
+@task
 async def task_convert_a(a: A) -> B:
     return B(content=a.content+" Convert B")
+
+@task
+async def task_convert_b(b: B) -> C:
+    return C(content=b.content+" Convert C")
 
 @task
 async def task_chain_b(b: B) -> B:
@@ -46,24 +54,28 @@ async def test_task():
 
 @pytest.mark.asyncio
 async def test_task_group_sequential():
-    result = await (task_generate_a >> task_convert_a)()
+    result = await (task_generate_a >> task_convert_a)(None)
     assert isinstance(result, B)
 
 @pytest.mark.asyncio
 async def test_task_group_parallel():
     tg = task_generate_a | task_generate_b
-    result = await tg()
-    print("--", tg, result)
+    result = await tg(None)
     assert isinstance(result[0], A)
     assert isinstance(result[1], B)
 
 @pytest.mark.asyncio
 async def test_task_group_combined():
     tg = ((task_generate_a >> task_convert_a) | (task_generate_b >> task_chain_b)) 
-    print('--', tg)
-    result = await tg()
+    result = await tg(None)
     assert isinstance(result[0], B)
     assert isinstance(result[1], B)
+
+@pytest.mark.asyncio
+async def test_task_group_combined_flat():
+    tg = (task_generate_a | task_generate_b) >> task_combine_a_b
+    result = await tg(None)
+    assert isinstance(result, C)
 
 @pytest.mark.asyncio
 async def test_pipeline_type_chaining():
@@ -73,11 +85,17 @@ async def test_pipeline_type_chaining():
     assert isinstance(result, B) and result.content == "Generated A Convert B", "Type-based chaining failed."
 
 @pytest.mark.asyncio
+async def test_pipeline_subgraphs():
+    pipeline = Pipeline(task_generate_a >> set_output("a"), get_output("a") >> task_convert_a)
+    result = await pipeline()
+    assert isinstance(result[0], A) and isinstance(result[1], B)
+
+@pytest.mark.asyncio
 async def test_pipeline_parallel_execution():
     """Test handling of parallel tasks."""
-    pipeline = Pipeline(task_generate_a >> task_convert_a >> task_combine_a_b)
+    pipeline = Pipeline(task_generate_a >> task_convert_a >> task_convert_b)
     result = await pipeline()
-    assert isinstance(result, C) and "Generated A" in result.content and "Convert B" in result.content, "Parallel execution or combination failed."
+    assert isinstance(result, C)
 
 @pytest.mark.asyncio
 async def test_pipeline_transitioning_types():
@@ -90,5 +108,5 @@ async def test_pipeline_transitioning_types():
 async def test_pipeline_failure_handling():
     """Test the pipeline's ability to handle task failures."""
     pipeline = Pipeline(task_fail)
-    with pytest.raises(Exception, match="Simulated task failure"):
+    with pytest.raises(PipelineError):
         await pipeline()

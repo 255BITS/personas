@@ -1,61 +1,49 @@
 from .checkpoint_strategies import CheckpointStrategy
-from .task import Composable, SetOutput, GetOutput
+from .task import Composable, TaskGroup
 import asyncio
 from typing import Callable, TypeVar, Generic, Union, Awaitable, Dict, Any, List
 
 class PipelineError(Exception):
     pass
 
-class Pipeline:
-    def __init__(self, *tasks: Composable, parallel: bool = False, checkpoint_strategy: 'CheckpointStrategy' = None):
-        self.tasks = list(tasks)
-        self.parallel = parallel
-        self.checkpoint_strategy = checkpoint_strategy
+class PipelineContext:
+    def __init__(self):
         self.outputs = {}
+        self.events = {}
+
+    async def set_output(self, name, value):
+        """Set the output value and notify any waiters."""
+        self.outputs[name] = value
+        event = self.events.get(name)
+        if event and event.is_set() == False:
+            event.set()
+
+    async def get_output(self, name):
+        """Get the output value if available, or wait for it to be set."""
+        if name in self.outputs:
+            return self.outputs[name]
+
+        if name not in self.events:
+            self.events[name] = asyncio.Event()
+
+        await self.events[name].wait()
+        return self.outputs[name]
+
+class Pipeline:
+    def __init__(self, *subgraphs: Composable, checkpoint_strategy: 'CheckpointStrategy' = None):
+        self.subgraphs = subgraphs
+        self.checkpoint_strategy = checkpoint_strategy
+        self.context = PipelineContext()
 
     async def __call__(self, *args, **kwargs) -> List[Any]:
-        checkpoint_identifier = f"pipeline_{id(self)}"
-        checkpoint = await self.load_checkpoint(checkpoint_identifier)
-        if checkpoint:
-            start_index = checkpoint['task_index']
-            args = checkpoint['args']
-            kwargs = checkpoint['kwargs']
-            self.outputs = checkpoint['outputs']
-        else:
-            start_index = 0
-
         outputs = []
-        for i in range(start_index, len(self.tasks)):
-            task = self.tasks[i]
-            print("Tasks", len(self.tasks), task)
-            if isinstance(task, SetOutput):
-                self.outputs[task.name] = args[0]
-            elif isinstance(task, GetOutput):
-                args = (self.outputs[task.name],)
+        for subgraph in self.subgraphs:
+            if isinstance(subgraph, TaskGroup):
+                result = await subgraph(self.context, *args, **kwargs)
             else:
-                if self.parallel:
-                    result = await asyncio.gather(task(*args, **kwargs))
-                else:
-                    result = await task(*args, **kwargs)
-                print("Found", result)
-                outputs.append(result)
-                args = (result,)
-            await self.save_checkpoint(checkpoint_identifier, i + 1, args, kwargs, self.outputs)
+                result = await subgraph(*args, **kwargs)
+            outputs.append(result)
+            args = (result,)
         if len(outputs) == 1:
             return outputs[0]
         return outputs
-
-    async def save_checkpoint(self, checkpoint_identifier: str, task_index: int, args: tuple, kwargs: dict, outputs: dict):
-        if self.checkpoint_strategy:
-            checkpoint_data = {
-                'task_index': task_index,
-                'args': args,
-                'kwargs': kwargs,
-                'outputs': outputs
-            }
-            await self.checkpoint_strategy.save_checkpoint(checkpoint_identifier, checkpoint_data)
-
-    async def load_checkpoint(self, checkpoint_identifier: str) -> Dict[str, Any]:
-        if self.checkpoint_strategy:
-            return await self.checkpoint_strategy.load_checkpoint(checkpoint_identifier)
-        return None
