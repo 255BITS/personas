@@ -7,16 +7,14 @@ class PipelineError(Exception):
     pass
 
 class Pipeline:
-    def __init__(self, *subgraphs: Composable, context: PipelineContext = None):
+    def __init__(self, *subgraphs: Composable):
         self.subgraphs = subgraphs
-        if context is None:
-            self.context = PipelineContext()
-        else:
-            self.context = context
 
-    async def __call__(self, *args, **kwargs) -> List[Any]:
+    async def __call__(self, *args, context: PipelineContext = None, **kwargs) -> List[Any]:
+        if context is None:
+            context = PipelineContext()
         outputs = []
-        subgraphs_to_execute = [subgraph(self.context, *args, **kwargs) for subgraph in self.subgraphs]
+        subgraphs_to_execute = [subgraph(context, *args, **kwargs) for subgraph in self.subgraphs]
         outputs = await asyncio.gather(*subgraphs_to_execute)
         if len(outputs) == 1:
             return outputs[0]
