@@ -25,10 +25,10 @@ class TaskGroup(Composable[T, R]):
         self.parallel = parallel
         self.name = [t.name for t in tasks]
 
-    async def execute_task(self, task, context, *args, **kwargs):
+    def execute_task(self, task, context, *args, **kwargs):
         if isinstance(task, GetOutput):
-            return await context.get_output(task.name)
-        return await task(context, *args, **kwargs)
+            return context.get_output(task.name)
+        return task(context, *args, **kwargs)
 
     async def __call__(self, context, *args, **kwargs):
         if self.parallel:
