@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+import functools
 from typing import Callable, TypeVar, Generic, Union, Awaitable, Dict, Any, List
 
 # Credit to Claude 3 Opus 20240220 and ChatGPT
@@ -74,12 +76,15 @@ class GraphNode(Composable[T, R]):
         return other.__or__(self)
 
 class Task(GraphNode[T, R]):
-    def __init__(self, func: Callable[..., Awaitable[R]], name: str = None):
+    def __init__(self, func: Callable[..., Union[Awaitable[R], R]], name: str = None):
         self.func = func
         self.name = name or func.__name__
 
     async def __call__(self, *args, **kwargs) -> R:
-        return await self.func(*args, **kwargs)
+        if inspect.iscoroutinefunction(self.func):
+            return await self.func(*args, **kwargs)
+        else:
+            return self.func(*args, **kwargs)
 
 class SetOutput(GraphNode[T, T]):
     def __init__(self, name: str):

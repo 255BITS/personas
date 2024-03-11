@@ -19,6 +19,10 @@ async def task_generate_a() -> A:
     return A(content="Generated A")
 
 @task
+def task_sync_a() -> A:
+    return A(content="Generated A")
+
+@task
 async def task_generate_b() -> B:
     return B(content="Generated B")
 
@@ -53,6 +57,11 @@ async def test_task():
     assert isinstance(result, A)
 
 @pytest.mark.asyncio
+async def test_sync_task():
+    result = await task_sync_a()
+    assert isinstance(result, A)
+
+@pytest.mark.asyncio
 async def test_task_group_sequential():
     result = await (task_generate_a >> task_convert_a)(None)
     assert isinstance(result, B)
@@ -66,7 +75,7 @@ async def test_task_group_parallel():
 
 @pytest.mark.asyncio
 async def test_task_group_combined():
-    tg = ((task_generate_a >> task_convert_a) | (task_generate_b >> task_chain_b)) 
+    tg = ((task_generate_a >> task_convert_a) | (task_generate_b >> task_chain_b))
     result = await tg(None)
     assert isinstance(result[0], B)
     assert isinstance(result[1], B)
