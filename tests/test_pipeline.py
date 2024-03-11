@@ -53,12 +53,12 @@ async def task_fail() -> C:
 
 @pytest.mark.asyncio
 async def test_task():
-    result = await task_generate_a()
+    result = await task_generate_a(None)
     assert isinstance(result, A)
 
 @pytest.mark.asyncio
 async def test_sync_task():
-    result = await task_sync_a()
+    result = await task_sync_a(None)
     assert isinstance(result, A)
 
 @pytest.mark.asyncio

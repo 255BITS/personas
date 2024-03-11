@@ -3,12 +3,14 @@ import inspect
 import functools
 from typing import Callable, TypeVar, Generic, Union, Awaitable, Dict, Any, List
 
+from .pipeline_context import PipelineContext
+
 # Credit to Claude 3 Opus 20240220 and ChatGPT
 T = TypeVar('T')
 R = TypeVar('R')
 
 class Composable(Generic[T, R]):
-    async def __call__(self, context, *args, **kwargs) -> R:
+    async def __call__(self, context: PipelineContext, *args, **kwargs) -> R:
         raise NotImplementedError
 
     def __rshift__(self, other: 'Composable') -> 'Composable':
@@ -26,10 +28,7 @@ class TaskGroup(Composable[T, R]):
     async def execute_task(self, task, context, *args, **kwargs):
         if isinstance(task, GetOutput):
             return await context.get_output(task.name)
-        elif isinstance(task, Task):
-            return await task(*args, **kwargs)
-        else:
-            return await task(context, *args, **kwargs)
+        return await task(context, *args, **kwargs)
 
     async def __call__(self, context, *args, **kwargs):
         if self.parallel:
@@ -80,7 +79,7 @@ class Task(GraphNode[T, R]):
         self.func = func
         self.name = name or func.__name__
 
-    async def __call__(self, *args, **kwargs) -> R:
+    async def __call__(self, context: PipelineContext, *args, **kwargs) -> R:
         if inspect.iscoroutinefunction(self.func):
             return await self.func(*args, **kwargs)
         else:
@@ -90,7 +89,7 @@ class SetOutput(GraphNode[T, T]):
     def __init__(self, name: str):
         self.name = name
 
-    async def __call__(self, context, value: T) -> T:
+    async def __call__(self, context: PipelineContext, value: T) -> T:
         await context.set_output(self.name, value)
         return value
 
@@ -98,7 +97,7 @@ class GetOutput(GraphNode[T, T]):
     def __init__(self, name: str):
         self.name = name
 
-    async def __call__(self, context, *args, **kwargs) -> T:
+    async def __call__(self, context: PipelineContext, *args, **kwargs) -> T:
         return None
 
 def task(func: Callable[..., Awaitable[R]], name: str = None) -> Task[T, R]:

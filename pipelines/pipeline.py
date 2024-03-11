@@ -16,10 +16,7 @@ class Pipeline:
     async def __call__(self, *args, **kwargs) -> List[Any]:
         outputs = []
         for subgraph in self.subgraphs:
-            if isinstance(subgraph, TaskGroup):
-                result = await subgraph(self.context, *args, **kwargs)
-            else:
-                result = await subgraph(*args, **kwargs)
+            result = await subgraph(self.context, *args, **kwargs)
             outputs.append(result)
         if len(outputs) == 1:
             return outputs[0]
