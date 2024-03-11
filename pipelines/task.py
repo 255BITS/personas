@@ -65,8 +65,8 @@ class TaskGroup(Composable[T, R]):
 
 class GraphNode(Composable[T, R]):
     def __rshift__(self, other: 'Composable') -> 'TaskGroup':
-        if isinstance(other, TaskGroup):
-            return TaskGroup([self, other.tasks], parallel=False)
+        if isinstance(other, TaskGroup) and other.parallel == False:
+            return TaskGroup([self] + other.tasks, parallel=False)
         if isinstance(other, Composable):
             return TaskGroup([self, other], parallel=False)
 

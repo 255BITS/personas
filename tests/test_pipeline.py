@@ -95,9 +95,15 @@ async def test_pipeline_type_chaining():
 
 @pytest.mark.asyncio
 async def test_pipeline_subgraphs():
-    pipeline = Pipeline(task_generate_a >> set_output("a"), get_output("a") >> task_convert_a)
+    pipeline = Pipeline(task_generate_a, task_generate_b)
     result = await pipeline()
     assert isinstance(result[0], A) and isinstance(result[1], B)
+
+@pytest.mark.asyncio
+async def test_pipeline_fan_out():
+    pipeline = Pipeline(task_generate_a >> set_output("a"), get_output("a") >> (task_convert_a | task_convert_a))
+    result = await pipeline()
+    assert isinstance(result[0], A) and isinstance(result[1][0], B) and isinstance(result[1][1], B)
 
 @pytest.mark.asyncio
 async def test_pipeline_parallel_execution():

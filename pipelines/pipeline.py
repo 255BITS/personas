@@ -21,7 +21,6 @@ class Pipeline:
             else:
                 result = await subgraph(*args, **kwargs)
             outputs.append(result)
-            args = (result,)
         if len(outputs) == 1:
             return outputs[0]
         return outputs
