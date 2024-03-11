@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from pipelines import Pipeline, PipelineError, async_partial, task, set_output, get_output
+from pipelines import Pipeline, PipelineError, task, set_output, get_output
 
 from typing import NamedTuple
 
