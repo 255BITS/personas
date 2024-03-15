@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from pipelines import Pipeline, PipelineError, task, set_output, get_output
+from pipelines import Pipeline, PipelineError, TaskExecutionError, task, set_output, get_output, OutputMismatchError
 
 from typing import NamedTuple
 
@@ -49,7 +49,7 @@ async def task_combine_a_b(a: A, b: B) -> C:
 
 @task
 async def task_fail() -> C:
-    raise PipelineError("Simulated task failure")
+    assert 1 == 2
 
 @pytest.mark.asyncio
 async def test_task():
@@ -123,5 +123,11 @@ async def test_pipeline_transitioning_types():
 async def test_pipeline_failure_handling():
     """Test the pipeline's ability to handle task failures."""
     pipeline = Pipeline(task_fail)
-    with pytest.raises(PipelineError):
+    with pytest.raises(TaskExecutionError):
         await pipeline()
+
+@pytest.mark.asyncio
+async def test_pipeline_failure_fan_out():
+    """Test the pipeline's ability to handle mismatched fan-in/fan-out."""
+    with pytest.raises(OutputMismatchError):
+        Pipeline(task_generate_a >> set_output('typo'), get_output('a') >> task_convert_a)
