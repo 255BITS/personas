@@ -1,6 +1,12 @@
-# ML Inference Pipeline
+# Personas
 
-ML Inference Pipeline is a Python library that provides a flexible and intuitive way to build and execute machine learning inference pipelines(DAGs). It allows you to define tasks, compose them into pipelines, and execute them efficiently using asynchronous programming.
+Personas is an entry into the Backdrop Build v3 program.
+
+In this entry we also introduce `MLQ Pipelines`
+
+# MLQ Pipelines
+
+MLQ Pipelines is a Python library that provides a flexible and intuitive way to build and execute machine learning inference pipelines(DAGs). It allows you to define tasks, compose them into pipelines, and execute them efficiently using asynchronous programming.
 
 ## Features
 
@@ -13,10 +19,10 @@ ML Inference Pipeline is a Python library that provides a flexible and intuitive
 
 ## Installation
 
-You can install ML Inference Pipeline using pip:
+You can install MLQ Pipelines using pip:
 
 ```
-pip install ml-inference-pipeline
+pip install mlq-pipelines #TODO
 ```
 
 ## Usage
@@ -24,7 +30,7 @@ pip install ml-inference-pipeline
 Here's a simple example of how to use ML Inference Pipeline:
 
 ```python
-from ml_inference_pipeline import task, Pipeline
+from mlq_pipelines import task, Pipeline
 
 @task
 async def task1(x):
