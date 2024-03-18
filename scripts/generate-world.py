@@ -46,7 +46,7 @@ class WorldConfig(pydantic.BaseModel):
     description: str
     geography: str
     climate: str
-    inhabitants: List[Dict[str, str]] = Field(..., example=[{"Rebels": "The Rebels are a loose coalition..."}])
+    inhabitants: List[Dict[str, str]] = pydantic.Field(..., example=[{"Rebels": "The Rebels are a loose coalition..."}])
     stable_diffusion_prompt: str 
 
 @task

@@ -28,6 +28,27 @@ class Candidate(pydantic.BaseModel):
     negative: str
 
 # **Tasks**
+class PendingException(Exception):
+    pass
+
+@task
+async def check_api_metrics(prompt) -> str:
+    """Queries the metrics endpoint and raises an exception if tasks are pending."""
+    url = "https://sliders.ntcai.xyz/admin/metrics"
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url) as response:
+                response.raise_for_status()  # Check for API success
+                data = await response.json()
+                if data["pending"] and "sliders-train" in data["pending"]:  # Check if 'pending' is not empty 
+                    print("Pending tasks", data["pending"])
+                    raise PendingException("API has pending tasks.")
+                return prompt
+
+        except aiohttp.ClientError as e:
+            print(f"Error checking API metrics: {e}")
+            raise  # Re-raise the exception 
 
 @task  # Assuming you have a task framework like 'pipelines'
 async def generate_candidates(prompt: str) -> str:  # Returns raw JSON strings
@@ -116,7 +137,7 @@ async def queue_candidates(candidates: List[Candidate]) -> None:
 
 # **Pipeline Definition**
 candidate_pipeline = Pipeline(
-    generate_candidates >> parse_candidates >> filter_existing >> queue_candidates
+    check_api_metrics >> generate_candidates >> parse_candidates >> filter_existing >> queue_candidates
 )
 
 # **Main Function**
@@ -127,15 +148,13 @@ Create a list of 10 slider candidates. Each candidate will be trained and releas
 Here's some examples:
 
 ```
-
 [{ "positive": "happy", "negative": "sad" },
-
 { "positive": "extremely detailed", "negative": "bland" },
-
-{ "positive": "looking at viewer", "negative": "looking away" }]
-
+{ "positive": "looking at viewer", "negative": "looking away" },
+{ "positive": "rose colored long dress flowing in the wind in a curious way", "negative": "plain shirt, boring clothes, drab clothing" }]
 ```
 
+Make your candidates diverse and awesome. Good ideas are things like clothing, emotion, expression, style, and anything that an AI artist would normally fit in an SDXL prompt. Note that during training one of the following words are prepended to each training step: `woman, man, bright, dim, cartoon, photo, anime`.
 Write the results in a JSON block wrapped with this markdown tag "```json".
 """
 
