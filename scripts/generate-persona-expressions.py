@@ -46,9 +46,9 @@ personas = {
     "Utopia_Zephyr": "60790fcbd82a4d86a4f0710be4ddaba5"
 }
 worlds = {
-        "Utopia": "d57d772e-39cd-4dc0-9699-743803ca3e51",
-        "Neotopia": None,
-        "Dystopia": None
+    "Utopia": "d57d772e39cd4dc09699743803ca3e51",
+    "Neotopia": "895d89c8247d4cc0bbf94d078473e271",
+    "Dystopia": "0d61620e4935416c9e53801e714f1b00"
 }
 
 # Define the pipeline
