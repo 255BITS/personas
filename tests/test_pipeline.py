@@ -2,21 +2,30 @@ import pytest
 import asyncio
 from pipelines import Pipeline, PipelineError, TaskExecutionError, task, set_output, get_output, OutputMismatchError
 
-from typing import NamedTuple
+class Base:
+    def __init__(self, content):
+        self.content = content
 
-# Define mock types for testing purposes
-class A(NamedTuple):
+class A(Base):
     content: str
 
-class B(NamedTuple):
+class B(Base):
     content: str
 
-class C(NamedTuple):
+class C(Base):
     content: str
 
 @task
 async def task_generate_a() -> A:
     return A(content="Generated A")
+
+@task
+async def task_generate_tuple():
+    return (A(content="Generated A"), B(content="Generated B"))
+
+@task
+async def task_combine_tuple(a:A, b:B) -> C:
+    return C(content=a.content + b.content)
 
 @task
 def task_sync_a() -> A:
@@ -32,6 +41,7 @@ async def task_override(override=None):
 
 @task
 async def task_convert_a(a: A) -> B:
+    print("a", a, type(a))
     return B(content=a.content+" Convert B")
 
 @task
@@ -65,6 +75,11 @@ async def test_sync_task():
 async def test_task_group_sequential():
     result = await (task_generate_a >> task_convert_a)(None)
     assert isinstance(result, B)
+
+@pytest.mark.asyncio
+async def test_task_combine_tuple():
+    result = await (task_generate_tuple >> task_combine_tuple)(None)
+    assert isinstance(result, C)
 
 @pytest.mark.asyncio
 async def test_task_group_parallel():
