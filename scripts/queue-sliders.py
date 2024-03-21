@@ -79,7 +79,7 @@ async def parse_candidates(raw_candidates: str) -> List[Candidate]:
     return parsed_candidates
 
 @task
-async def filter_existing(candidates: List[Candidate]) -> List[Candidate]:
+async def filter_existing(*candidates: List[Candidate]) -> List[Candidate]:
     """Removes candidates that already exist in your storage."""
     filtered_candidates = []
     async with aiohttp.ClientSession() as session:
@@ -99,7 +99,7 @@ async def filter_existing(candidates: List[Candidate]) -> List[Candidate]:
     return filtered_candidates
 
 @task
-async def queue_candidates(candidates: List[Candidate]) -> None:
+async def queue_candidates(*candidates: List[Candidate]) -> None:
     """Adds candidates to the queue with API calls."""
     url = "https://sliders.ntcai.xyz/sliders/train"
     headers = {"Content-Type": "application/json"}

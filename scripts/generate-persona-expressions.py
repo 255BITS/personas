@@ -11,7 +11,7 @@ from pathlib import Path
 
 emotions = {
     "happy": "44ba1d0d-6948-4676-8f3d-2df7d531a1ab",
-    "laughing": "ecc7c41a01f14afb81fd339ab9eea386"
+    "shocked": "ab7ade2b28b247e98223a90275d32da1"
 }
 
 personas = {
@@ -19,8 +19,10 @@ personas = {
     #"Dystopia_Liam Hawkins": "af7979bd0ac846528a168717c7d4e9ac",
     "Neotopia_Zara Xander": "422cf62d05364ccdb3e880e40ca33127",
     "Neotopia_Aria Vance": "48e6a5095093445c85c1cdc80115d780",
-    "Utopia_Lyra Solaris": "8ada7ba66f0c4971a715e9490d3f43a6",
-    "Utopia_Zephyr": "60790fcbd82a4d86a4f0710be4ddaba5"
+    "Neotopia_Lyra Solaris": "8ada7ba66f0c4971a715e9490d3f43a6",
+    "Utopia_Zephyr": "60790fcbd82a4d86a4f0710be4ddaba5",
+    "Utopia_Lumina": "abd94c190be04c529f4eb5149dcc2607",
+    "Dystopia_Liam Hawkins": "af7979bd0ac846528a168717c7d4e9ac"
 }
 worlds = {
     "Utopia": "d57d772e39cd4dc09699743803ca3e51",
@@ -86,7 +88,7 @@ async def download_and_save_image(s3_key: str, i: int, j: int, persona_name: str
     dirname = os.path.dirname(__file__)
     target_dir = Path(dirname) / ".."/"assets" / world_name / persona_name
     target_dir.mkdir(parents=True, exist_ok=True)  # Create the directory structure if it doesn't exist
-    file_path = target_dir / f"happy_{i}_laughing_{j}.png"
+    file_path = target_dir / f"happy_{i}_shocked_{j}.png"
 
     # Begin the download
     async with aiohttp.ClientSession() as session:
@@ -108,7 +110,7 @@ def check_if_image_exists(i: int, j: int, persona_name: str, world_name: str) ->
     # Determine the file's expected path
     dirname = os.path.dirname(__file__)
     target_dir = Path(dirname) / ".." / "assets" / world_name / persona_name
-    file_path = target_dir / f"happy_{i}_laughing_{j}.png"
+    file_path = target_dir / f"happy_{i}_shocked_{j}.png"
 
     # Check if the file exists
     return file_path.exists()
@@ -122,7 +124,7 @@ async def process_coordinates(i, j, persona, world, emotions, persona_uuid, prom
 			return
 		sliders = [
 			{"uuid": emotions["happy"], "strength": (i / 10) * 0.85},
-			{"uuid": emotions["laughing"], "strength": (j / 10) * 0.7},
+			{"uuid": emotions["shocked"], "strength": (j / 10) * 0.7},
 			{"uuid": persona_uuid, "strength": 0.8},
 		]
 		print("generate", world.name, persona.name, i, j)
