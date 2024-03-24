@@ -5,6 +5,13 @@ from typing import Callable, TypeVar, Generic, Union, Awaitable, Dict, Any, List
 
 from .pipeline_context import PipelineContext
 
+class TaskExecutionError(Exception):
+    def __init__(self, task_name: str, message: str, original_exception: Exception):
+        self.task_name = task_name
+        self.message = message
+        self.original_exception = original_exception
+        super().__init__(f"Error executing task '{task_name}': {message}")
+
 # Credit to Claude 3 Opus 20240220 and ChatGPT
 T = TypeVar('T')
 R = TypeVar('R')
@@ -31,6 +38,7 @@ class TaskGroup(Composable[T, R]):
         return task(context, *args, **kwargs)
 
     async def __call__(self, context, *args, **kwargs):
+
         if self.parallel:
             # Use a comprehension with the execute_task method for parallel execution
             tasks_to_execute = [self.execute_task(task, context, *args, **kwargs) for task in self.tasks]
@@ -39,14 +47,12 @@ class TaskGroup(Composable[T, R]):
 
         results = []
         for task in self.tasks:
+            if not isinstance(args, list) and not isinstance(args, tuple) and args != ():
+                args = [args]
             result = await self.execute_task(task, context, *args, **kwargs)
-            results.append(result)
-            if isinstance(task, TaskGroup) and task.parallel:
-                args = result
-            else:
-                args = (result,)
+            args = result
         # For sequential tasks, return the last result if there is one
-        return results[-1] if results else None
+        return args
 
     def __rshift__(self, other: 'Composable') -> 'TaskGroup':
         return self.compose(other, False)
@@ -80,10 +86,13 @@ class Task(GraphNode[T, R]):
         self.name = name or func.__name__
 
     async def __call__(self, context: PipelineContext, *args, **kwargs) -> R:
-        if inspect.iscoroutinefunction(self.func):
-            return await self.func(*args, **kwargs)
-        else:
-            return self.func(*args, **kwargs)
+        try:
+            if inspect.iscoroutinefunction(self.func):
+                return await self.func(*args, **kwargs)
+            else:
+                return self.func(*args, **kwargs)
+        except Exception as e:
+            raise TaskExecutionError(self.name, str(e), e) from e
 
 class SetOutput(GraphNode[T, T]):
     def __init__(self, name: str):

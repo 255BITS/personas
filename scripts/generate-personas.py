@@ -1,56 +1,28 @@
 import asyncio
-from pydantic import BaseModel, Field
+import pydantic
+import re
 from typing import List
 from pipelines import task, Pipeline, set_output, get_output
-
-class WorldConfig(BaseModel):
-    name: str
-    description: str
-    geography: str
-    climate: str
-    inhabitants: List[str]
-
-class PersonaConfig(BaseModel):
-    name: str
-    age: int
-    background: str
-    traits: List[str]
-    goals: List[str]
+from common import save_pydantic, load_pydantic_or_none, WorldConfig, ValidationError, schema_to_prompt, post_message_to_anthropic_cached, PersonaConfig
+from personas.llm_methods import post_message_to_anthropic
 
 @task
-async def get_world_prompt(world_type: str) -> str:
-    return f"Create a {world_type} world with a unique name, description, geography, climate, and inhabitants."
-
-def get_persona_prompt(persona_name: str):
-    @task
-    async def get_persona_prompt_(world_config: WorldConfig) -> str:
-        return f"Create a persona named {persona_name} who lives in the world of {world_config.name}. Include age, background, traits, and goals."
-    return get_persona_prompt_
+async def load_world(world_name: str) -> WorldConfig:
+    world = load_pydantic_or_none(WorldConfig, world_name+".json")
+    return world
 
 @task
-async def get_llm_request(prompt: str) -> str:
-    # Simulate an LLM request and return the generated JSON
-    # Replace this with your actual LLM request implementation
-    sample_json = '''
-    {
-        "name": "Ethereal Realm",
-        "description": "A mystical world filled with enchanted forests and floating islands.",
-        "geography": "Lush forests, soaring mountains, and vast oceans dotted with levitating landmasses.",
-        "climate": "Temperate with occasional magical storms.",
-        "inhabitants": ["Elves", "Fairies", "Wizards", "Talking Animals"],
-        "age": 20,
-        "background": "Persona background",
-        "traits": ["active", "happy"],
-        "goals": ["world domination"]
-    }
-    '''
-    return sample_json
-
-@task
-def validate_world_json(world_json: str) -> WorldConfig:
-    # Parse and validate the generated world JSON using Pydantic
-    # Replace this with your actual validation logic
-    return WorldConfig.parse_raw(world_json)
+async def create_persona_json(world: WorldConfig) -> str:
+    schema_desc = schema_to_prompt(PersonaConfig)
+    prompt = f"Generate a persona for a `personas` chat project. Characters will come from this world: ```\n{world}\n```\n\nThe resulting persona should have the following attributes:\n```\n{schema_desc}\n```\n\nWrite your resulting Persona in json. Be sure to wrap it in \"```json\" markdown tag. Don't use the name Zephyr or Aria."
+    response_data = await post_message_to_anthropic(prompt)
+    content = response_data['content'][0]['text']
+    json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+    if json_match:
+        json_string = json_match.group(1)
+        return json_string
+    else:
+        raise LLMResponseInvalid()
 
 @task
 def validate_persona_json(persona_json: str) -> PersonaConfig:
@@ -60,28 +32,19 @@ def validate_persona_json(persona_json: str) -> PersonaConfig:
 
 # Define the pipeline
 pipeline = Pipeline(
-    get_world_prompt
-    >> get_llm_request
-    >> validate_world_json
-    >> set_output('world'),
-    get_output('world') >> (
-        (get_persona_prompt('Bob') >> get_llm_request >> validate_persona_json)
-        | (get_persona_prompt('Alice') >> get_llm_request >> validate_persona_json)
-        | (get_persona_prompt('Charlie') >> get_llm_request >> validate_persona_json)
-    )
+    load_world >> create_persona_json >> validate_persona_json
 )
 
 async def main():
     # Execute the pipeline
-    world_type = "Fantasy"
+    world_types = ["Utopia", "Neotopia", "Dystopia"]
     try:
-        results = await pipeline(world_type)
-        world = results[0]
-        personas = results[1]
+        for world_type in world_types:
+            for i in range(2):
+                persona = await pipeline(world_type)
+                save_pydantic(persona, f"{world_type}_{persona.name}.json")
 
-        print(f"Generated World: {world}")
-        for persona in personas:
-            print(f"Generated Persona: {persona}")
+        print(f"Generated Persona: {persona.name}")
     except Exception as e:
         print(f"Error generating world and personas: {e}")
 
