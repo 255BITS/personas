@@ -1,0 +1,1 @@
+__sdprompt__, __bg__ <lora:sdxl_lightning_8step_lora:1>
