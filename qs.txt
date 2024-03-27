@@ -1,0 +1,2 @@
+Verify this image. Are there obvious compression artifacts(Yes/No)?
+Verify this image. Do the hands have the correct number of fingers, 4 and a thumb on each hand (Yes/No)?
