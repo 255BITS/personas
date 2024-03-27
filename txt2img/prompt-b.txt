@@ -1,0 +1,2 @@
+__sdprompt__, __bg__
+<lora:sdxl_lightning_8step_lora:1> <lora:smiling_notrigger:0.8>

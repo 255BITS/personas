@@ -19,17 +19,15 @@ import string
 import heapq
 import time
 import random
+import glob
 
-async def correct_insert_element(item, sorted_list, top_k):
+async def correct_insert_element(item, sorted_list):
     if not sorted_list:
         return [item]
     # Find a place for insertion
     insert_pos = await find_insertion_point(item, sorted_list)
     # Insert item tentatively
     sorted_list.insert(insert_pos, item)
-    # If list is longer than top_k, remove the least element
-    #if len(sorted_list) > top_k:
-    #    sorted_list.pop()
     return sorted_list
 
 async def find_insertion_point(item, sorted_list):
@@ -45,13 +43,13 @@ async def find_insertion_point(item, sorted_list):
             low = mid + 1
     return low
 
-async def sort_with_correction(buffer, top_k):
+async def sort_with_correction(buffer):
     sorted_list = []
     for item in buffer:
-        sorted_list = await correct_insert_element(item, sorted_list, top_k)
+        sorted_list = await correct_insert_element(item, sorted_list)
     # Correction mechanism here
     sorted_list = await correction_pass(sorted_list)
-    return sorted_list[:top_k], sorted_list[top_k:]
+    return sorted_list
 
 async def correction_pass(sorted_list):
     # Implement a correction pass, potentially re-comparing elements
@@ -80,18 +78,27 @@ def choose_first_occurrence(s, opta, optb):
         # Neither A nor B is found
         return None
 
-async def compare(a,b):
-    vlmquestion = "Q:\nIMG1: <image>\nIMG2: <image>\nLook at IMG1 then look at IMG2. Which image is darker?\nA:\n"
+async def compare(a, b):
+    question = open("txt2img/q.txt", "r").read().strip()
+    vlmquestion = f"Q: <image> <image>\n{question}\nA: "
+    rag = [a, b]
+    random.shuffle(rag)
     while True:
-        print("Call vlm", vlmquestion, a, b)
-        r = vlm_call(vlmquestion, ",".join([a,b]))
-        print(r)
-        if choose_first_occurrence(r, "IMG1", "IMG2")=="IMG1":
+        print("Call vlm", vlmquestion, rag)
+        r = vlm_call(vlmquestion, ",".join(rag))
+        print("choose focc", r)
+        if choose_first_occurrence(r, "first", "second") == "first" or choose_first_occurrence(r, "1st", "2nd") == "1st":
             print("1")
-            return 1
-        if choose_first_occurrence(r, "IMG1", "IMG2") == "IMG2":
+            if a == rag[0]:
+                return 1
+            else:
+                return -1
+        if choose_first_occurrence(r, "first", "second") == "second" or choose_first_occurrence(r, "1st", "2nd") == "2nd":
             print("2")
-            return -1
+            if a == rag[0]:
+                return -1
+            else:
+                return 1
         print("Retrying ...")
 
 @task
@@ -103,39 +110,43 @@ pipeline = Pipeline(
 
 async def main():
     # Execute the pipeline
-    p = open("prompt-a.txt", "r").read()
-    np = open("nprompt-a.txt", "r").read()
     random_dir = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     os.makedirs("images/"+random_dir, exist_ok=True)
     old = None
     i = 0
     buffer = []
     sorted_list = []
-    num_elements = 30
-    top_k = 5
+    num_elements = 128
     all_elements = []
 
+    #unload_checkpoint()
+    #load_model("XL/mario/toprated1.safetensors")
+    reload_checkpoint()
     while i < num_elements:
         print(i)
-        p = open("prompt-a.txt", "r").read()
-        np = open("nprompt-a.txt", "r").read()
+        pattern = "txt2img/prompt-*"
+        files_matching = glob.glob(pattern)
+
+        # Choose a random file from the matched files
+        random_file = random.choice(files_matching) if files_matching else None
+        p = open(random_file, "r").read()
+        np = open("txt2img/nprompt-a.txt", "r").read()
+        #if i % 2 == 0:
+        #    p = "blank black background"
+        #    np = "people, interesting, colors"
         A = await pipeline(p, np)
         all_elements.append(A)
         i += 1
+    unload_checkpoint()
 
-    sorted_list, rest = await sort_with_correction(all_elements, top_k)
+    sorted_list = await sort_with_correction(all_elements)
+
+    num_digits = len(str(num_elements - 1))
 
     for j, img in enumerate(sorted_list):
-        dst = "images/"+random_dir+"/topk_sorted_"+str(j)+".png"
-        shutil.move(img, dst)
+        dst = f"images/{random_dir}/{random_dir}_{j:0{num_digits}d}.png"
         print(dst)
-
-
-    for j, img in enumerate(rest):
-        dst = "images/"+random_dir+"/not_topk_unsorted_"+str(j)+".png"
         shutil.move(img, dst)
-        print(dst)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

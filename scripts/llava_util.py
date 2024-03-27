@@ -66,6 +66,12 @@ def load_images(image_files):
 
 llavamodel = None
 
+def unload_llava_model():
+    global llavamodel
+    del llavamodel
+    llavamodel = None
+    torch.cuda.empty_cache()
+
 def eval_model(args):
     # Model
     disable_torch_init()

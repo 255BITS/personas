@@ -1,0 +1,9 @@
+{
+  "sd_webui_url": "http://localhost:7777/sdapi/v1/txt2img",
+  "height": 1152,
+  "width": 896,
+  "sampler_name": "Euler a",
+  "cfg_scale": 1,
+  "steps": 8
+}
+

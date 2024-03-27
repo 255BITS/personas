@@ -58,37 +58,6 @@ def random_fname():
     # Combine them to form a filename
     return f"images/{random_string}_{timestamp}.png"
 
-def generate_image(prompt, negative_prompt, lora):
-    seed = random.SystemRandom().randint(0, 2**32-1)
-    with open("sdwebui_config.json", 'r') as file:
-        data = json.load(file)
-    headers = {"Content-Type": "application/json"}
-    prompt_ = prompt.replace("LORAVALUE",  "{:.14f}".format(lora))
-    nprompt_ = negative_prompt.replace("LORAVALUE",  "{:.14f}".format(lora))
-    uid = prompt_+"_"+negative_prompt+"_"+str(seed)+"_"+"{:.14f}".format(lora)
-
-    data["prompt"]=prompt_
-    data["negative_prompt"]=nprompt_
-
-    data["seed"]=seed
-    url = data["sd_webui_url"]
-    del data["sd_webui_url"]
-    #print(" calling: ", prompt_)
-    #print(url)
-
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-
-    if response.status_code == 200:
-        r = response.json()
-        image = Image.open(io.BytesIO(base64.b64decode(r['images'][0].split(",",1)[0])))
-        fname= random_fname()
-        image.save(fname)
-        return fname
-
-    else:
-        print(f"Request failed with status code {response.status_code}")
-        return generate_image(prompt, negative_prompt, lora)
-
 def vlm_call(question, img):
     return run_llava("/ml2/trained/vllm/VILA/VILA-13b", "vicuna_v1", question, img)
 
@@ -99,7 +68,10 @@ def filter_vlm(question: str, reverse=False):
     async def get_vlm_response_(img) -> str:
         if img is None:
             return None
-        r = vlm_call(question, img)
+        q = "<image>\nQ: "+question+"\nA: "
+        print(q)
+        r = vlm_call(q, img)
+        print(r)
         #r = get_vlm_request("<image_placeholder>"+question, [img])
         if reverse:
             if "Yes" in r:
@@ -123,11 +95,6 @@ def filter_vlm(question: str, reverse=False):
                 return None
     return get_vlm_response_
 
-def text_to_image(p: str, np=""):
-    @task
-    async def generate_image_() -> str:
-        return generate_image(p, np, 0)
-    return generate_image_
 if False:
     # specify the path to the model
     model_path = "deepseek-ai/deepseek-vl-7b-chat"

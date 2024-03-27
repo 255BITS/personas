@@ -19,12 +19,8 @@ from functools import reduce
 import random
 import string
 
-#pipeline = (gen_image(name1) | gen_image(name2)) >> vlmChooseBest >> train_lora(name) >> eval_lora(name) >> add_to_personas()
-@task
-async def filter_qs(qs):
-    return
-
 async def main():
+    unload_checkpoint()
     random_dir = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     os.makedirs("images/"+random_dir, exist_ok=True)
     old = None
