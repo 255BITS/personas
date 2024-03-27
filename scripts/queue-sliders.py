@@ -32,6 +32,39 @@ class PendingException(Exception):
     pass
 
 @task
+async def insert_samples(prompt):
+    url = "https://sliders.ntcai.xyz/sliders/random_sliders"
+
+    try:
+        # Asynchronously send our ship to fetch the data
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                # Ensure our ship returned successfully
+                if response.status != 200:
+                    raise Exception(f"Failed to fetch data: HTTP Status {response.status}")
+
+                # Unload our treasures
+                data = await response.json()
+
+                # Process the treasures into the desired format
+                results = [
+                    {
+                        "positive": item["data"]["prompts"][0]["positive"],
+                        "negative": item["data"]["prompts"][0].get("negative", "")
+                    } for item in data
+                ]
+
+                # Replace "SAMPLES" in our prompt with the structured data
+                modified_prompt = prompt.replace("SAMPLES", json.dumps(results))
+                print('--', modified_prompt)
+                return modified_prompt
+
+    except aiohttp.ClientError as e:
+        # Handle storms by raising an exception
+        raise Exception(f"Network error occurred: {e}")
+
+
+@task
 async def check_api_metrics(prompt) -> str:
     """Queries the metrics endpoint and raises an exception if tasks are pending."""
     url = "https://sliders.ntcai.xyz/admin/metrics"
@@ -135,9 +168,14 @@ async def queue_candidates(*candidates: List[Candidate]) -> None:
             except aiohttp.ClientError as e:
                 print(f"Error queueing candidate: {candidate} - Error: {e}")
 
+@task
+async def log_prompt(prompt: str) -> str:
+    print("--", prompt)
+    return prompt
 # **Pipeline Definition**
 candidate_pipeline = Pipeline(
-    check_api_metrics >> generate_candidates >> parse_candidates >> filter_existing >> queue_candidates
+    check_api_metrics >> insert_samples >> log_prompt >> generate_candidates >> parse_candidates >> filter_existing >> queue_candidates
+    #insert_samples >> generate_candidates >> log_prompt
 )
 
 # **Main Function**
@@ -147,15 +185,13 @@ Create a list of 10 slider candidates. Each candidate will be trained and releas
 
 Here's some examples:
 
-```
-[{ "positive": "happy", "negative": "sad" },
-{ "positive": "extremely detailed", "negative": "bland" },
-{ "positive": "looking at viewer", "negative": "looking away" },
-{ "positive": "rose colored long dress flowing in the wind in a curious way", "negative": "plain shirt, boring clothes, drab clothing" }]
+```json
+SAMPLES
 ```
 
-Make your candidates diverse and awesome. Good ideas are things like clothing, emotion, expression, style, and anything that an AI artist would normally fit in an SDXL prompt. Note that during training one of the following words are prepended to each training step: `woman, man, bright, dim, cartoon, photo, anime`.
-Write the results in a JSON block wrapped with this markdown tag "```json".
+Make your candidates diverse and awesome. Good ideas are things like clothing, emotion, expression, style, or even persona descriptions of novel characters and places. Note that during training one of the following words are prepended to each training step: `woman, man, bright, dim, cartoon, photo, anime`.
+Avoid themes that we already have - make the list unique, useful for artists, engaging, attention grabbing, and generally creative and interesting. Each of these suggestions will turn into a trained sliders LoRA.
+Write the results in a JSON block wrapped with this markdown tag "```json". Have fun too, thanks in advance!
 """
 
     try:

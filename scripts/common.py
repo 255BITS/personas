@@ -60,13 +60,13 @@ def load_pydantic_or_none(obj_type: Type[T], filename: str) -> Optional[T]:
 
 CACHE_FILENAME = "anthropic_cache.db"
 
-async def post_message_to_anthropic_cached(prompt):
+async def post_message_to_anthropic_cached(prompt, temperature=0.5, system=None):
     cache_filepath = os.path.abspath(CACHE_FILENAME)  # Get absolute path for reliability
     with shelve.open(cache_filepath) as cache:  # Open the cache as a database-like object
         if prompt in cache:
             return cache[prompt]
         else:
-            response_data = await post_message_to_anthropic(prompt)  # Call the Anthropic API
+            response_data = await post_message_to_anthropic(prompt,temperature=temperature, system=system)  # Call the Anthropic API
             cache[prompt] = response_data
             return response_data
 

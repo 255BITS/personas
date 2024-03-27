@@ -4,7 +4,7 @@ import aiohttp
 import asyncio
 import os
 
-async def post_message_to_anthropic(message: str, model: str = "claude-3-opus-20240229", system=None):
+async def post_message_to_anthropic(message: str, model: str = "claude-3-opus-20240229", system=None, temperature=0.5):
     anthropic_api_key = os.getenv('ANTHROPIC_API_KEY', None)  # Ensure the ANTHROPIC_API_KEY is set in your environment variables
     if anthropic_api_key is None:
         raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
@@ -17,7 +17,7 @@ async def post_message_to_anthropic(message: str, model: str = "claude-3-opus-20
     data = {
         "model": model,
         "max_tokens": 2048,
-        "temperature": 0.8,
+        "temperature": temperature,
         "messages": [
             {"role": "user", "content": message}
         ]
