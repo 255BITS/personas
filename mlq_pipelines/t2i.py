@@ -1,7 +1,7 @@
 import random
 import requests
 import json
-from PIL import Image
+from PIL import Image, PngImagePlugin
 import io
 import base64
 
@@ -67,9 +67,19 @@ def generate_image(prompt, negative_prompt, config_file=None, fname=None):
     if response.status_code == 200:
         r = response.json()
         image = Image.open(io.BytesIO(base64.b64decode(r['images'][0].split(",",1)[0])))
+        jsoninfo = json.loads(r['info'])
+        #print(jsoninfo["infotexts"][0])
+        png_payload = {
+            "image": "data:image/png;base64," + r['images'][0]
+        }
+        response2 = requests.post(url=url.replace("txt2img", "png-info"), json=png_payload)
+
+        pnginfo = PngImagePlugin.PngInfo()
+        pnginfo.add_text("parameters", response2.json().get("info"))
+
         if fname is None:
             fname= random_fname()
-        image.save(fname)
+        image.save(fname, pnginfo=pnginfo)
         return fname
 
     else:
