@@ -8,19 +8,22 @@ import random
 import string
 import glob
 
-async def correct_insert_element(item, sorted_list, question):
+async def correct_insert_element(item, sorted_list, question, top_k):
     if not sorted_list:
         return [item]
     # Find a place for insertion
-    insert_pos = await find_insertion_point(item, sorted_list, question)
+    insert_pos = await find_insertion_point(item, sorted_list, question, top_k)
     # Insert item tentatively
     sorted_list.insert(insert_pos, item)
     return sorted_list
 
-async def find_insertion_point(item, sorted_list, question):
+async def find_insertion_point(item, sorted_list, question, top_k):
     # Binary search variant that accounts for potential comparison errors
     low, high = 0, len(sorted_list) - 1
     while low <= high:
+        if low > top_k and top_k > 0:
+            print("trimming search")
+            return low
         mid = (low + high) // 2
         result = await compare(item, sorted_list[mid], question)
         # Adjust binary search based on comparison, considering potential inaccuracies
@@ -30,10 +33,10 @@ async def find_insertion_point(item, sorted_list, question):
             low = mid + 1
     return low
 
-async def sort_with_correction(buffer, question=None):
+async def sort_with_correction(buffer, question=None, top_k=-1):
     sorted_list = []
     for item in buffer:
-        sorted_list = await correct_insert_element(item, sorted_list, question)
+        sorted_list = await correct_insert_element(item, sorted_list, question, top_k)
     # Correction mechanism here
     sorted_list = await correction_pass(sorted_list)
     return sorted_list
@@ -89,7 +92,7 @@ async def compare(a, b, question=None):
         print("Retrying ...")
 
 
-async def sort_images(indir, outdir, question=None):
+async def sort_images(indir, outdir, question=None, top_k=-1):
     # Execute the pipeline
     os.makedirs(outdir, exist_ok=True)
     all_elements = []
@@ -99,7 +102,7 @@ async def sort_images(indir, outdir, question=None):
             filepath = os.path.join(indir, filename)
             all_elements.append(filepath)
     #unload_checkpoint()
-    sorted_list = await sort_with_correction(all_elements, question)
+    sorted_list = await sort_with_correction(all_elements, question=question, top_k=top_k)
     print("Found files", indir, len(all_elements))
     num_digits = len(str(len(sorted_list) - 1))
     for j, img in enumerate(sorted_list):
