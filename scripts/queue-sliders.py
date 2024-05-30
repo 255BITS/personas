@@ -189,9 +189,9 @@ Here's some examples:
 SAMPLES
 ```
 
-Make your candidates diverse and awesome. Good ideas are things like clothing, emotion, expression, style, or even persona descriptions of novel characters and places. Note that during training one of the following words are prepended to each training step: `woman, man, bright, dim, cartoon, photo, anime`.
-Avoid themes that we already have - make the list unique, useful for artists, engaging, attention grabbing, and generally creative and interesting. Each of these suggestions will turn into a trained sliders LoRA.
-Write the results in a JSON block wrapped with this markdown tag "```json". Have fun too, thanks in advance!
+Suggest new LoRA sliders to train. Good ideas are things like clothing, emotion, expression, style, perspective, or even persona descriptions of novel characters and places. Note that during training one of the following words are prepended to each training step: `woman, man, bright, dim, cartoon, photo, anime`.
+Avoid themes that we already have. Each of these suggestions will turn into a trained sliders LoRA. For inspiration, some more examples of successful sliders that are used a lot - 'alone/in a crowd of people', 'blurry/extremely detailed', nonplussed/shocked'.
+Write the results in a JSON block wrapped with this markdown tag "```json". Have fun too, thanks in advance! Also, don't do steampunk.
 """
 
     try:
